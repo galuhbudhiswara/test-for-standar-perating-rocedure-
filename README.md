@@ -1,162 +1,154 @@
-
 # Standar Operating Procedure 
 
 ## Content
 
-- [Single responsibility principle](#single-responsibility-principle)
+- [Chaining Methods](#chaining-methods)
+- [Methods should do just one thing](#methods-should-do-just-one-thing)
 
-### **principle**
+### **Chaining Methods**
 
-A class should have only one responsibility.
+Object-oriented programming technique that allows you to call multiple methods on a single object instance in a single, sequential statement.
 
 Bad:
 
 ```php
-public function update(Request $request): string
-{
-    $validated = $request->validate([
-        'title' => 'required|max:255',
-        'events' => 'required|array:date,type'
-    ]);
+    public function __invoke(Request $request, string $permohonan_id)
+    {
+        $this->user = $this->getRealUser();
+        $aksesPermohonan = $this->getAksesPermohonanUnitKerja($this->user, $permohonan_id);
+        if (empty($aksesPermohonan)) return $this->unAuthorized();
 
-    foreach ($request->events as $event) {
-        $date = $this->carbon->parse($event['date'])->toString();
+        $this->application = $this->tblPermohonanService->findOneBy(['id' => $permohonan_id]);
 
-        $this->logger->log('Update event ' . $date . ' :: ' . $);
+        $idKpknl = $this->user->getCurrentProfile()->getUnitKerja()->getId();
+
+
+
+        $this->penetapanStatusService->insertPenetapanStatus($permohonan_id, false, null, 'kirim', $this->user->getUsername());
+
+        $penetapan = $this->tblPenetapanService->getByPermohonan($permohonan_id);
+        if ($penetapan == null) {
+            throw new NotFoundException('penetapan');
+        }
+
+        return $this->tblPenetapanService->postKirimKepala($this->user, $permohonan_id);
     }
-
-    $this->event->updateGeneralEvent($request->validated());
-
-    return back();
-}
 ```
 
 Good:
 
 ```php
-public function update(UpdateRequest $request): string
-{
-    $this->logService->logEvents($request->events);
+    public function __invoke(Request $request, string $permohonan_id): Response | View
+    {
+        $this
+            //where u first initialized variable with null 
+            ->init()
+            ->setData()
+            ->checkRequirement()
+            ->process()
 
-    $this->event->updateGeneralEvent($request->validated());
-
-    return back();
-}
+        return $this->success('msg');
+    }
 ```
 
-### **principle**
+### **Methods should do just one thing**
 
-A class should have only one responsibility.
+A function should do just one thing and do it well.
 
 Bad:
 
 ```php
-public function update(Request $request): string
-{
-    $validated = $request->validate([
-        'title' => 'required|max:255',
-        'events' => 'required|array:date,type'
-    ]);
+    private function checkRequirement(): self
+    {
+        if ($this->getAksesPermohonanUnitKerja($this->user, $this->applicationId) === []) {
+            $this->unauthorizedException();
+        }
 
-    foreach ($request->events as $event) {
-        $date = $this->carbon->parse($event['date'])->toString();
+        $this->permohonan = $this->tblPermohonanService->get($this->applicationId);
 
-        $this->logger->log('Update event ' . $date . ' :: ' . $);
+        if (null === $this->permohonan) {
+            $this->resourceNotFoundException();
+        }
+
+        if(ApplicationStatusEnum::PENETAPAN_JADWAL_LELANG != $this->permohonan->getStatus()->getNama()) {
+            $this->badRequestException();
+        }
+
+        if ($this->form->get('jumlahPengumuman')->getData() == JumlahPengumumanPenetapanEnum::SATU_KALI) {
+
+            if ($this->form->get('tanggalTerbit')->getData() > $this->form->get('tanggalSelesai')->getData()) {
+                $this->badRequestException('Tanggal terbit tidak boleh lebih dari tanggal selesai');
+            }
+
+        } else {
+            $announcements = $this->form->get('pengumumans')->getData();
+
+            if ($announcements[1]->getTanggalTerbit() < $announcements[0]->getTanggalTerbit()) {
+                $this->badRequestException('Tanggal terbit kedua harus lebih dari tanggal terbit pertama');
+            }
+        }
+
+        return $this;
     }
-
-    $this->event->updateGeneralEvent($request->validated());
-
-    return back();
-}
 ```
 
 Good:
 
 ```php
-public function update(UpdateRequest $request): string
-{
-    $this->logService->logEvents($request->events);
+    private function checkRequirement(): self
+    {
+        $this
+            ->checkUserAccess()
+            ->checkApplication()
+            ->checkStartEndDate();
 
-    $this->event->updateGeneralEvent($request->validated());
-
-    return back();
-}
-```
-
-### **principle**
-
-A class should have only one responsibility.
-
-Bad:
-
-```php
-public function update(Request $request): string
-{
-    $validated = $request->validate([
-        'title' => 'required|max:255',
-        'events' => 'required|array:date,type'
-    ]);
-
-    foreach ($request->events as $event) {
-        $date = $this->carbon->parse($event['date'])->toString();
-
-        $this->logger->log('Update event ' . $date . ' :: ' . $);
+        return $this
     }
 
-    $this->event->updateGeneralEvent($request->validated());
+    private function checkUserAccess(): self
+    {
+        if ($this->getAksesPermohonanUnitKerja($this->user, $this->applicationId) === []) {
+            $this->unauthorizedException();
+        }
 
-    return back();
-}
-```
-
-Good:
-
-```php
-public function update(UpdateRequest $request): string
-{
-    $this->logService->logEvents($request->events);
-
-    $this->event->updateGeneralEvent($request->validated());
-
-    return back();
-}
-```
-
-### **Single responsibility principle**
-
-A class should have only one responsibility.
-
-Bad:
-
-```php
-public function update(Request $request): string
-{
-    $validated = $request->validate([
-        'title' => 'required|max:255',
-        'events' => 'required|array:date,type'
-    ]);
-
-    foreach ($request->events as $event) {
-        $date = $this->carbon->parse($event['date'])->toString();
-
-        $this->logger->log('Update event ' . $date . ' :: ' . $);
+        return $this;
     }
 
-    $this->event->updateGeneralEvent($request->validated());
+    private function checkApplication(): self
+    {
+        $this->permohonan = $this->tblPermohonanService->get($this->applicationId);
 
-    return back();
-}
+        if (null === $this->permohonan) {
+            $this->resourceNotFoundException();
+        }
+
+        if(ApplicationStatusEnum::PENETAPAN_JADWAL_LELANG != $this->permohonan->getStatus()->getNama()) {
+            $this->badRequestException();
+        }
+
+        return $this;
+    }
+
+    private function checkStartEndDate(): self
+    {
+
+        if ($this->form->get('jumlahPengumuman')->getData() == JumlahPengumumanPenetapanEnum::SATU_KALI) {
+
+            if ($this->form->get('tanggalTerbit')->getData() > $this->form->get('tanggalSelesai')->getData()) {
+                $this->badRequestException('Tanggal terbit tidak boleh lebih dari tanggal selesai');
+            }
+
+        } else {
+            $announcements = $this->form->get('pengumumans')->getData();
+
+            if ($announcements[1]->getTanggalTerbit() < $announcements[0]->getTanggalTerbit()) {
+                $this->badRequestException('Tanggal terbit kedua harus lebih dari tanggal terbit pertama');
+            }
+
+        }
+
+        return $this;
+    }
 ```
 
-Good:
 
-```php
-public function update(UpdateRequest $request): string
-{
-    $this->logService->logEvents($request->events);
-
-    $this->event->updateGeneralEvent($request->validated());
-
-    return back();
-}
-```
