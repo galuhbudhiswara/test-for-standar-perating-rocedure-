@@ -7,6 +7,9 @@
 - [Methods should do just one thing](#methods-should-do-just-one-thing)
 - [Entity Should Have Setter and Getter](#entity-should-have-setter-and-getter)
 - [Simple Query Should Be In Service Class](#simple-query-should-be-in-service-class)
+- [Use Repository Pattern](#use-repository-pattern)
+- [Use Constants and Enums for Magic Strings](#use-constants-and-enums-for-magic-strings)
+- [Use Type Hints and Return Types](#use-type-hints-and-return-types)
 
 ### **Chaining Methods**
 
@@ -424,3 +427,158 @@ class TblBuktiSetorMateraiService
     }
 }
 ```
+
+[🔝 Back to contents](#contents)
+
+### **Use Repository Pattern**
+
+Keep database queries organized in Repository classes instead of scattering them across controllers or services.
+
+Bad:
+
+```php
+#[Route('/api/users/active', methods: ['GET'])]
+public function getActiveUsers(): Response
+{
+    $qb = $this->em->createQueryBuilder();
+    $users = $qb->select('u')
+        ->from(User::class, 'u')
+        ->where('u.active = true')
+        ->orderBy('u.createdAt', 'DESC')
+        ->getQuery()
+        ->getResult();
+        
+    return $this->json($users);
+}
+```
+
+Good:
+
+```php
+class UserRepository extends ServiceEntityRepository
+{
+    public function __construct(RegistryInterface $registry)
+    {
+        parent::__construct($registry, User::class);
+    }
+
+    public function findActiveUsers(): array
+    {
+        return $this->createQueryBuilder('u')
+            ->where('u.active = true')
+            ->orderBy('u.createdAt', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
+}
+
+#[Route('/api/users/active', methods: ['GET'])]
+public function getActiveUsers(): Response
+{
+    $users = $this->userRepository->findActiveUsers();
+    
+    return $this->json($users);
+}
+```
+
+### **Use Constants and Enums for Magic Strings**
+
+Avoid magic strings in conditionals. Use enums or constants for type safety and maintainability.
+
+Bad:
+
+```php
+#[Route('/api/users/{id}/status', methods: ['PATCH'])]
+public function updateUserStatus(User $user, Request $request): Response
+{
+    $status = $request->getPayload()->get('status');
+    
+    if ($status === 'active') {
+        $user->setIsActive(true);
+    } elseif ($status === 'inactive') {
+        $user->setIsActive(false);
+    } elseif ($status === 'banned') {
+        $user->setBanned(true);
+    }
+    
+    $this->userRepository->save($user);
+    return $this->json($user);
+}
+```
+
+Good:
+
+```php
+enum UserStatus: string
+{
+    case ACTIVE = 'active';
+    case INACTIVE = 'inactive';
+    case BANNED = 'banned';
+}
+
+#[Route('/api/users/{id}/status', methods: ['PATCH'])]
+public function updateUserStatus(User $user, Request $request): Response
+{
+    $status = UserStatus::tryFrom($request->getPayload()->get('status'));
+    
+    if ($status === null) {
+        return $this->json(['error' => 'Invalid status'], 400);
+    }
+    
+    $this->userService->updateUserStatus($user, $status);
+    
+    return $this->json($user);
+}
+```
+
+[🔝 Back to contents](#contents)
+
+### **Use Type Hints and Return Types**
+
+Always use type hints for parameters and return types to improve code clarity and IDE support.
+
+Bad:
+
+```php
+class UserService
+{
+    public function getUser($id)
+    {
+        return $this->repository->find($id);
+    }
+
+    public function filterByStatus($users, $status)
+    {
+        $filtered = [];
+        foreach ($users as $user) {
+            if ($user->getStatus() === $status) {
+                $filtered[] = $user;
+            }
+        }
+        return $filtered;
+    }
+}
+```
+
+Good:
+
+```php
+class UserService
+{
+    public function getUser(int $id): ?User
+    {
+        return $this->repository->find($id);
+    }
+
+    public function filterByStatus(array $users, string $status): array
+    {
+        return array_filter($users, fn(User $user) => $user->getStatus() === $status);
+    }
+}
+```
+
+
+## Authors
+
+- [@galuhbudhiswara](https://github.com/galuhbudhiswara)
+
