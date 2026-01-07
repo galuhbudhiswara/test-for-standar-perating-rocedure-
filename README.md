@@ -3,6 +3,7 @@
 ## Content
 
 - [Chaining Methods](#chaining-methods)
+- [Validate Every Payload](#validate-every-payload)
 - [Methods should do just one thing](#methods-should-do-just-one-thing)
 
 ### **Chaining Methods**
@@ -41,13 +42,92 @@ Good:
     public function __invoke(Request $request, string $permohonan_id): Response | View
     {
         $this
-            //where u first initialized variable with null 
+            //where u first initialized variable with null value
             ->init()
+            //where u assign variable with the actual value
             ->setData()
+            //handle if data null or another case validate 
             ->checkRequirement()
+            //the actual endpoint process 
             ->process()
 
+        //return endpoint response 
         return $this->success('msg');
+    }
+```
+
+### **Validate Every Payload**
+
+Move validation from controllers to Request classes.
+
+Bad:
+
+```php
+    public function __invoke(Request $request, string $permohonan_id)
+    {
+        $payload = $request->request->all();
+        $userWhatsappNumber = $payload['nomor'];
+    }
+```
+
+Good:
+
+```php
+    public function __invoke(Request $request)
+    {
+        $form = $this->formFactory->submitRequest(TblUserWhatsappType::class, $request);
+        if (!$form->isValid()) {
+            return $this->view($form, Response::HTTP_BAD_REQUEST);
+        }
+    }
+```
+
+```php
+    final class TblUserWhatsappType extends AbstractType
+    {
+        public function buildForm(FormBuilderInterface $builder, array $options)
+        {
+            $builder->add('nomor', null, [
+                'required' => true,
+                'label' => 'sas.form.field.tblorganisasi.nomor',
+                'attr' => [
+                    'placeholder' => '+62812xxxxxxxx',
+                    'pattern' => '[0-9]{7,15}'
+                ],
+                'constraints' => [
+                    new NotBlank([
+                        'message' => 'Nomor telepon tidak boleh kosong'
+                    ]),
+                    new NotNull([
+                        'message' => 'Nomor telepon harus diisi'
+                    ]),
+                    new Regex([
+                        'pattern' => '/^[0-9]{7,15}$/', 
+                        'message' => 'Nomor telepon harus menggunakan format internasional dan hanya mengandung angka'
+                    ]),
+                    new Callback([
+                        'callback' => [$this, 'validateIndonesianNumber']
+                    ])
+                ]
+            ]);
+        }
+
+        public function validateIndonesianNumber($value, ExecutionContextInterface $context)
+        {
+            if (strpos($value, '62') === 0) {
+                if (strlen($value) > 2 && $value[2] !== '8') {
+                    $context->buildViolation('Nomor telepon Indonesia harus diawali dengan +628')
+                        ->addViolation();
+                }
+            }
+        }
+
+        public function configureOptions(OptionsResolver $resolver)
+        {
+            $resolver->setDefaults([
+                'translation_domain' => 'forms',
+            ]);
+        }
     }
 ```
 
