@@ -5,6 +5,10 @@
 - [Chaining Methods](#chaining-methods)
 - [Validate Every Payload](#validate-every-payload)
 - [Methods should do just one thing](#methods-should-do-just-one-thing)
+- [Entity Should Have Setter and Getter](#entity-should-have-setter-and-getter)
+- [Simple Query Should Be In Service Class](#simple-query-should-be-in-service-class)
+
+
 
 ### **Chaining Methods**
 
@@ -390,4 +394,46 @@ Good:
 ```
 
 
+[🔝 Back to contents](#contents)
 
+### **Simple Query Should Be In Service Class**
+
+A controller must have only one responsibility, so move query from controllers to service classes.
+
+Bad:
+
+```php
+public function getObject(Request $request)
+{
+    $alias = $this->aliasHelper->findAlias('root');
+    $qb = $this->tblBuktiSetorMateraiService->getQueryBuilder();
+    //some filter logic
+
+
+    
+    return $qb->getQuery()->getResult();
+    
+}
+```
+
+Good:
+
+```php
+public function getObject(Request $request)
+{
+    return $this->tblBuktiSetorMateraiService->getFilteredObject()
+}
+
+class TblBuktiSetorMateraiService
+{
+    public function getFilteredObject() :Array
+    {
+        $alias = $this->aliasHelper->findAlias('root');
+
+        $qb = $this->createQueryBuilder($alias);
+        //some filter logic
+        
+        return $qb->getQuery()->getResult();
+    }
+}
+```
