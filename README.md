@@ -240,3 +240,154 @@ Good:
 ```
 
 
+[🔝 Back to contents](#contents)
+
+
+### **Entity Should Have Setter and Getter**
+
+It is widely considered a best practice for entities in object-oriented programming (OOP) to have getters and setters for their private fields. This approach, known as encapsulation.
+
+Bad:
+
+```php
+    namespace KejawenLab\Application\Entity;
+
+    use KejawenLab\Application\Repository\TblUserBankRepository;
+    use Symfony\Component\Serializer\Annotation\Groups;
+    use Doctrine\ORM\Mapping as ORM;
+    use Ramsey\Uuid\Doctrine\UuidGenerator;
+    use Ramsey\Uuid\UuidInterface;
+    use Gedmo\Blameable\Traits\BlameableEntity;
+    use Gedmo\Mapping\Annotation as Gedmo;
+    use Gedmo\SoftDeleteable\Traits\SoftDeleteableEntity;
+    use Gedmo\Timestampable\Traits\TimestampableEntity;
+    use KejawenLab\Application\Controller\v1\Traits\SecurityTrait;
+    use KejawenLab\Application\TblUserWhatsapp\Model\TblUserWhatsappInterface;
+
+    #[ORM\Table(name: 'tbl_user_nomor_whatsapp', schema: 'registrasi')]
+    #[ORM\Entity(repositoryClass: TblUserBankRepository::class)]
+    #[Gedmo\SoftDeleteable(fieldName: "deletedAt")]
+
+    class TblUserWhatsapp implements TblUserWhatsappInterface
+    {
+        #[ORM\Id]
+        #[ORM\Column(type: "uuid", unique: true)]
+        #[ORM\GeneratedValue(strategy: "CUSTOM")]
+        #[ORM\CustomIdGenerator(class: UuidGenerator::class)]
+        #[Groups(groups: ['read'])]
+        protected UuidInterface|string $id;
+
+        #[ORM\ManyToOne]
+        #[ORM\JoinColumn(nullable: false)]
+        private ?TblUser $user = null;
+
+        #[ORM\Column]
+        #[Groups(groups: ['read'])]
+        private ?bool $active = null;
+
+        #[ORM\Column(length: 50)]
+        #[Groups(groups: ['read', 'entitas_reg'])]
+        private ?string $nomorTelepon = null;
+    }
+```
+
+Good:
+
+```php
+    namespace KejawenLab\Application\Entity;
+
+    use KejawenLab\Application\Repository\TblUserBankRepository;
+    use Symfony\Component\Serializer\Annotation\Groups;
+    use Doctrine\ORM\Mapping as ORM;
+    use Ramsey\Uuid\Doctrine\UuidGenerator;
+    use Ramsey\Uuid\UuidInterface;
+    use Gedmo\Blameable\Traits\BlameableEntity;
+    use Gedmo\Mapping\Annotation as Gedmo;
+    use Gedmo\SoftDeleteable\Traits\SoftDeleteableEntity;
+    use Gedmo\Timestampable\Traits\TimestampableEntity;
+    use KejawenLab\Application\Controller\v1\Traits\SecurityTrait;
+    use KejawenLab\Application\TblUserWhatsapp\Model\TblUserWhatsappInterface;
+
+    #[ORM\Table(name: 'tbl_user_nomor_whatsapp', schema: 'registrasi')]
+    #[ORM\Entity(repositoryClass: TblUserBankRepository::class)]
+    #[Gedmo\SoftDeleteable(fieldName: "deletedAt")]
+
+    class TblUserWhatsapp implements TblUserWhatsappInterface
+    {
+        use BlameableEntity;
+        use SoftDeleteableEntity;
+        use TimestampableEntity;
+
+        #[ORM\Id]
+        #[ORM\Column(type: "uuid", unique: true)]
+        #[ORM\GeneratedValue(strategy: "CUSTOM")]
+        #[ORM\CustomIdGenerator(class: UuidGenerator::class)]
+        #[Groups(groups: ['read'])]
+        protected UuidInterface|string $id;
+
+        #[ORM\ManyToOne]
+        #[ORM\JoinColumn(nullable: false)]
+        private ?TblUser $user = null;
+
+        #[ORM\Column]
+        #[Groups(groups: ['read'])]
+        private ?bool $active = null;
+
+        #[ORM\Column(length: 50)]
+        #[Groups(groups: ['read', 'entitas_reg'])]
+        private ?string $nomorTelepon = null;
+
+
+        public function getId(): ?string
+        {
+            return $this->id;
+        }
+
+        public function getUser(): ?TblUser
+        {
+            return $this->user;
+        }
+
+        public function setUser(?TblUser $user): self
+        {
+            $this->user = $user;
+
+            return $this;
+        }
+
+        public function getNomorTelepon(): ?string
+        {
+            return $this->nomorTelepon;
+        }
+
+        public function setNomorTelepon(?string $nomorTelepon): self
+        {
+            $this->nomorTelepon = $nomorTelepon;
+
+            return $this;
+        }
+
+        public function isActive(): ?bool
+        {
+            return $this->active;
+        }
+        
+        public function setActive(bool $active): self
+        {
+            $this->active = $active;
+
+            return $this;
+        }
+
+        public function getNullOrString(): ?string
+        {
+            return $this->getNomorTelepon();
+            
+        }
+
+    }
+
+```
+
+
+
